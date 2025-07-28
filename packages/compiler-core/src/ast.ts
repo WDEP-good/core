@@ -16,8 +16,8 @@ import type { PropsExpression } from './transforms/transformElement'
 import type { ImportItem, TransformContext } from './transform'
 import type { Node as BabelNode } from '@babel/types'
 
-// Vue template is a platform-agnostic superset of HTML (syntax only).
-// More namespaces can be declared by platform specific compilers.
+// Vue 模板是一种与平台无关的、超越 HTML 的超集（仅限语法部分）。
+// 各平台特定的编译器还可以声明更多的命名空间。
 export type Namespace = number
 
 export enum Namespaces {
@@ -26,70 +26,77 @@ export enum Namespaces {
   MATH_ML,
 }
 
+// 节点类型枚举
 export enum NodeTypes {
-  ROOT,
-  ELEMENT,
-  TEXT,
-  COMMENT,
-  SIMPLE_EXPRESSION,
-  INTERPOLATION,
-  ATTRIBUTE,
-  DIRECTIVE,
+  ROOT, // 根节点
+  ELEMENT, // 元素节点
+  TEXT, // 文本节点
+  COMMENT, // 注释节点
+  SIMPLE_EXPRESSION, // 简单表达式节点
+  INTERPOLATION, // 插值表达式节点
+  ATTRIBUTE, // 属性节点
+  DIRECTIVE, // 指令节点
   // containers
-  COMPOUND_EXPRESSION,
-  IF,
-  IF_BRANCH,
-  FOR,
-  TEXT_CALL,
+  COMPOUND_EXPRESSION, // 复合表达式节点
+  IF, // v-if 节点
+  IF_BRANCH, // v-if 分支节点
+  FOR, // v-for 节点
+  TEXT_CALL, // 文本调用节点
   // codegen
-  VNODE_CALL,
-  JS_CALL_EXPRESSION,
-  JS_OBJECT_EXPRESSION,
-  JS_PROPERTY,
-  JS_ARRAY_EXPRESSION,
-  JS_FUNCTION_EXPRESSION,
-  JS_CONDITIONAL_EXPRESSION,
-  JS_CACHE_EXPRESSION,
+  VNODE_CALL, // vnode 调用节点
+  JS_CALL_EXPRESSION, // JS 调用表达式节点
+  JS_OBJECT_EXPRESSION, // JS 对象表达式节点
+  JS_PROPERTY, // JS 属性节点
+  JS_ARRAY_EXPRESSION, // JS 数组表达式节点
+  JS_FUNCTION_EXPRESSION, // JS 函数表达式节点
+  JS_CONDITIONAL_EXPRESSION, // JS 条件表达式节点
+  JS_CACHE_EXPRESSION, // JS 缓存表达式节点
 
   // ssr codegen
-  JS_BLOCK_STATEMENT,
-  JS_TEMPLATE_LITERAL,
-  JS_IF_STATEMENT,
-  JS_ASSIGNMENT_EXPRESSION,
-  JS_SEQUENCE_EXPRESSION,
-  JS_RETURN_STATEMENT,
+  JS_BLOCK_STATEMENT, // JS 代码块语句节点
+  JS_TEMPLATE_LITERAL, // JS 模板字符串节点
+  JS_IF_STATEMENT, // JS if 语句节点
+  JS_ASSIGNMENT_EXPRESSION, // JS 赋值表达式节点
+  JS_SEQUENCE_EXPRESSION, // JS 序列表达式节点
+  JS_RETURN_STATEMENT, // JS return 语句节点
 }
 
+// 元素类型枚举
 export enum ElementTypes {
-  ELEMENT,
-  COMPONENT,
-  SLOT,
-  TEMPLATE,
+  ELEMENT, // 元素节点
+  COMPONENT, // 组件节点
+  SLOT, // 插槽节点
+  TEMPLATE, // 模板节点
 }
 
+// 节点接口
 export interface Node {
-  type: NodeTypes
-  loc: SourceLocation
+  type: NodeTypes // 节点类型
+  loc: SourceLocation // 节点位置
 }
 
-// The node's range. The `start` is inclusive and `end` is exclusive.
+// 节点范围。`start` 是包含的，`end` 是独占的。
 // [start, end)
 export interface SourceLocation {
-  start: Position
-  end: Position
-  source: string
+  start: Position // 开始位置
+  end: Position // 结束位置
+  source: string // 源码
 }
 
+// 位置接口
 export interface Position {
-  offset: number // from start of file
-  line: number
-  column: number
+  offset: number // 从文件开始的位置
+  line: number // 行号
+  column: number // 列号
 }
 
+// 父节点类型
 export type ParentNode = RootNode | ElementNode | IfBranchNode | ForNode
 
+// 表达式节点类型
 export type ExpressionNode = SimpleExpressionNode | CompoundExpressionNode
 
+// 模板子节点类型
 export type TemplateChildNode =
   | ElementNode
   | InterpolationNode
@@ -101,61 +108,82 @@ export type TemplateChildNode =
   | ForNode
   | TextCallNode
 
+/**
+ * 根节点接口
+ * @type: interface
+ * @extends: Node
+ */
 export interface RootNode extends Node {
-  type: NodeTypes.ROOT
-  source: string
-  children: TemplateChildNode[]
-  helpers: Set<symbol>
-  components: string[]
-  directives: string[]
-  hoists: (JSChildNode | null)[]
-  imports: ImportItem[]
-  cached: (CacheExpression | null)[]
-  temps: number
-  ssrHelpers?: symbol[]
-  codegenNode?: TemplateChildNode | JSChildNode | BlockStatement
-  transformed?: boolean
+  type: NodeTypes.ROOT // 节点类型 根节点
+  source: string // 源码
+  children: TemplateChildNode[] // 子节点
+  helpers: Set<symbol> // 帮助函数
+  components: string[] // 组件
+  directives: string[] // 指令
+  hoists: (JSChildNode | null)[] // 提升节点
+  imports: ImportItem[] // 导入项
+  cached: (CacheExpression | null)[] // 缓存节点
+  temps: number // 临时节点
+  ssrHelpers?: symbol[] // SSR 帮助函数
+  codegenNode?: TemplateChildNode | JSChildNode | BlockStatement // 代码生成节点
+  transformed?: boolean // 是否已转换
 
   // v2 compat only
-  filters?: string[]
+  filters?: string[] // 过滤器
 }
 
+// 元素节点类型
 export type ElementNode =
   | PlainElementNode
   | ComponentNode
   | SlotOutletNode
   | TemplateNode
 
+/**
+ * 基础元素节点接口
+ * @type: interface
+ * @extends: Node
+ */
 export interface BaseElementNode extends Node {
-  type: NodeTypes.ELEMENT
-  ns: Namespace
-  tag: string
-  tagType: ElementTypes
-  props: Array<AttributeNode | DirectiveNode>
-  children: TemplateChildNode[]
-  isSelfClosing?: boolean
-  innerLoc?: SourceLocation // only for SFC root level elements
+  type: NodeTypes.ELEMENT // 节点类型 元素节点
+  ns: Namespace // 命名空间
+  tag: string // 标签名
+  tagType: ElementTypes // 标签类型
+  props: Array<AttributeNode | DirectiveNode> // 属性
+  children: TemplateChildNode[] // 子节点
+  isSelfClosing?: boolean // 是否自闭合
+  innerLoc?: SourceLocation // 仅用于 SFC 根级元素
 }
 
+/**
+ * 普通元素节点接口
+ * @type: interface
+ * @extends: BaseElementNode
+ */
 export interface PlainElementNode extends BaseElementNode {
-  tagType: ElementTypes.ELEMENT
+  tagType: ElementTypes.ELEMENT // 节点类型 元素节点
   codegenNode:
-    | VNodeCall
-    | SimpleExpressionNode // when hoisted
-    | CacheExpression // when cached by v-once
-    | MemoExpression // when cached by v-memo
+    | VNodeCall // 虚拟节点调用
+    | SimpleExpressionNode // 简单表达式节点
+    | CacheExpression // 缓存表达式节点
+    | MemoExpression // 缓存表达式节点
     | undefined
-  ssrCodegenNode?: TemplateLiteral
+  ssrCodegenNode?: TemplateLiteral // 模板字符串节点
 }
 
+/**
+ * 组件节点接口
+ * @type: interface
+ * @extends: BaseElementNode
+ */
 export interface ComponentNode extends BaseElementNode {
-  tagType: ElementTypes.COMPONENT
+  tagType: ElementTypes.COMPONENT // 节点类型 组件节点
   codegenNode:
-    | VNodeCall
-    | CacheExpression // when cached by v-once
-    | MemoExpression // when cached by v-memo
-    | undefined
-  ssrCodegenNode?: CallExpression
+    | VNodeCall // 虚拟节点调用
+    | CacheExpression // 缓存表达式节点
+    | MemoExpression // 缓存表达式节点
+    | undefined // 未定义
+  ssrCodegenNode?: CallExpression // 调用表达式节点
 }
 
 export interface SlotOutletNode extends BaseElementNode {

@@ -1,113 +1,148 @@
 import type { SourceLocation } from './ast'
 
+/**
+ * 编译器错误接口
+ * @type: interface
+ * @extends: SyntaxError
+ */
 export interface CompilerError extends SyntaxError {
   code: number | string
   loc?: SourceLocation
 }
 
+/**
+ * 收缩类型core编译错误接口
+ * @type: interface
+ * @extends: CompilerError
+ */
 export interface CoreCompilerError extends CompilerError {
   code: ErrorCodes
 }
 
+/**
+ * 默认错误处理方法
+ * @type: function
+ */
 export function defaultOnError(error: CompilerError): never {
   throw error
 }
-
+/**
+ * 默认警告处理方法
+ * @type: function
+ */
 export function defaultOnWarn(msg: CompilerError): void {
   __DEV__ && console.warn(`[Vue warn] ${msg.message}`)
 }
 
+/**
+ * 编译错误接口
+ * @type: interface
+ */
 type InferCompilerError<T> = T extends ErrorCodes
   ? CoreCompilerError
   : CompilerError
 
+/**
+ * 创建编译错误方法
+ * @type: function
+ * @param: code: 错误码
+ * @param: loc: 错误位置
+ * @param: messages: 错误信息
+ * @param: additionalMessage: 额外信息
+ * @returns: 编译错误
+ */
 export function createCompilerError<T extends number>(
   code: T,
   loc?: SourceLocation,
   messages?: { [code: number]: string },
   additionalMessage?: string,
 ): InferCompilerError<T> {
+  // 开发环境或非浏览器环境，使用错误信息
   const msg =
     __DEV__ || !__BROWSER__
       ? (messages || errorMessages)[code] + (additionalMessage || ``)
       : `https://vuejs.org/error-reference/#compiler-${code}`
+  // 创建编译错误
   const error = new SyntaxError(String(msg)) as InferCompilerError<T>
+  // 设置错误码
   error.code = code
+  // 设置错误位置
   error.loc = loc
+  // 返回编译错误
   return error
 }
 
+// 错误码枚举
 export enum ErrorCodes {
-  // parse errors
-  ABRUPT_CLOSING_OF_EMPTY_COMMENT,
-  CDATA_IN_HTML_CONTENT,
-  DUPLICATE_ATTRIBUTE,
-  END_TAG_WITH_ATTRIBUTES,
-  END_TAG_WITH_TRAILING_SOLIDUS,
-  EOF_BEFORE_TAG_NAME,
-  EOF_IN_CDATA,
-  EOF_IN_COMMENT,
-  EOF_IN_SCRIPT_HTML_COMMENT_LIKE_TEXT,
-  EOF_IN_TAG,
-  INCORRECTLY_CLOSED_COMMENT,
-  INCORRECTLY_OPENED_COMMENT,
-  INVALID_FIRST_CHARACTER_OF_TAG_NAME,
-  MISSING_ATTRIBUTE_VALUE,
-  MISSING_END_TAG_NAME,
-  MISSING_WHITESPACE_BETWEEN_ATTRIBUTES,
-  NESTED_COMMENT,
-  UNEXPECTED_CHARACTER_IN_ATTRIBUTE_NAME,
-  UNEXPECTED_CHARACTER_IN_UNQUOTED_ATTRIBUTE_VALUE,
-  UNEXPECTED_EQUALS_SIGN_BEFORE_ATTRIBUTE_NAME,
-  UNEXPECTED_NULL_CHARACTER,
-  UNEXPECTED_QUESTION_MARK_INSTEAD_OF_TAG_NAME,
-  UNEXPECTED_SOLIDUS_IN_TAG,
+  // 解析错误
+  ABRUPT_CLOSING_OF_EMPTY_COMMENT, // 非法的空注释结尾
+  CDATA_IN_HTML_CONTENT, // HTML内容中出现CDATA，仅允许在XML中
+  DUPLICATE_ATTRIBUTE, // 属性重复
+  END_TAG_WITH_ATTRIBUTES, // 结束标签不允许有属性
+  END_TAG_WITH_TRAILING_SOLIDUS, // 结束标签中出现非法的'/'
+  EOF_BEFORE_TAG_NAME, // 标签名前遇到文件结尾
+  EOF_IN_CDATA, // CDATA段中遇到文件结尾
+  EOF_IN_COMMENT, // 注释中遇到文件结尾
+  EOF_IN_SCRIPT_HTML_COMMENT_LIKE_TEXT, // script标签中注释样式文本遇到文件结尾
+  EOF_IN_TAG, // 标签中遇到文件结尾
+  INCORRECTLY_CLOSED_COMMENT, // 注释关闭方式不正确
+  INCORRECTLY_OPENED_COMMENT, // 注释开启方式不正确
+  INVALID_FIRST_CHARACTER_OF_TAG_NAME, // 标签名首字符非法
+  MISSING_ATTRIBUTE_VALUE, // 属性缺少值
+  MISSING_END_TAG_NAME, // 结束标签缺少标签名
+  MISSING_WHITESPACE_BETWEEN_ATTRIBUTES, // 属性之间缺少空格
+  NESTED_COMMENT, // 注释嵌套
+  UNEXPECTED_CHARACTER_IN_ATTRIBUTE_NAME, // 属性名中出现非法字符
+  UNEXPECTED_CHARACTER_IN_UNQUOTED_ATTRIBUTE_VALUE, // 非引号包裹的属性值中出现非法字符
+  UNEXPECTED_EQUALS_SIGN_BEFORE_ATTRIBUTE_NAME, // 属性名前出现等号
+  UNEXPECTED_NULL_CHARACTER, // 出现意外的空字符
+  UNEXPECTED_QUESTION_MARK_INSTEAD_OF_TAG_NAME, // 标签名处出现问号
+  UNEXPECTED_SOLIDUS_IN_TAG, // 标签中出现非法的'/'
 
-  // Vue-specific parse errors
-  X_INVALID_END_TAG,
-  X_MISSING_END_TAG,
-  X_MISSING_INTERPOLATION_END,
-  X_MISSING_DIRECTIVE_NAME,
-  X_MISSING_DYNAMIC_DIRECTIVE_ARGUMENT_END,
+  // Vue特有的解析错误
+  X_INVALID_END_TAG, // 非法的结束标签
+  X_MISSING_END_TAG, // 元素缺少结束标签
+  X_MISSING_INTERPOLATION_END, // 插值表达式缺少结束符
+  X_MISSING_DIRECTIVE_NAME, // 指令缺少名称
+  X_MISSING_DYNAMIC_DIRECTIVE_ARGUMENT_END, // 动态指令参数缺少结束括号
 
-  // transform errors
-  X_V_IF_NO_EXPRESSION,
-  X_V_IF_SAME_KEY,
-  X_V_ELSE_NO_ADJACENT_IF,
-  X_V_FOR_NO_EXPRESSION,
-  X_V_FOR_MALFORMED_EXPRESSION,
-  X_V_FOR_TEMPLATE_KEY_PLACEMENT,
-  X_V_BIND_NO_EXPRESSION,
-  X_V_ON_NO_EXPRESSION,
-  X_V_SLOT_UNEXPECTED_DIRECTIVE_ON_SLOT_OUTLET,
-  X_V_SLOT_MIXED_SLOT_USAGE,
-  X_V_SLOT_DUPLICATE_SLOT_NAMES,
-  X_V_SLOT_EXTRANEOUS_DEFAULT_SLOT_CHILDREN,
-  X_V_SLOT_MISPLACED,
-  X_V_MODEL_NO_EXPRESSION,
-  X_V_MODEL_MALFORMED_EXPRESSION,
-  X_V_MODEL_ON_SCOPE_VARIABLE,
-  X_V_MODEL_ON_PROPS,
-  X_INVALID_EXPRESSION,
-  X_KEEP_ALIVE_INVALID_CHILDREN,
+  // 转换阶段错误
+  X_V_IF_NO_EXPRESSION, // v-if/v-else-if 缺少表达式
+  X_V_IF_SAME_KEY, // v-if/else 分支必须使用唯一的key
+  X_V_ELSE_NO_ADJACENT_IF, // v-else/v-else-if 没有相邻的 v-if 或 v-else-if
+  X_V_FOR_NO_EXPRESSION, // v-for 缺少表达式
+  X_V_FOR_MALFORMED_EXPRESSION, // v-for 表达式格式错误
+  X_V_FOR_TEMPLATE_KEY_PLACEMENT, // v-for 的 key 放置在 template 上
+  X_V_BIND_NO_EXPRESSION, // v-bind 缺少表达式
+  X_V_ON_NO_EXPRESSION, // v-on 缺少表达式
+  X_V_SLOT_UNEXPECTED_DIRECTIVE_ON_SLOT_OUTLET, // slot outlet 上出现了意外的指令
+  X_V_SLOT_MIXED_SLOT_USAGE, // slot 用法混合
+  X_V_SLOT_DUPLICATE_SLOT_NAMES, // slot 名称重复
+  X_V_SLOT_EXTRANEOUS_DEFAULT_SLOT_CHILDREN, // 默认插槽有多余的子节点
+  X_V_SLOT_MISPLACED, // slot 用法位置不正确
+  X_V_MODEL_NO_EXPRESSION, // v-model 缺少表达式
+  X_V_MODEL_MALFORMED_EXPRESSION, // v-model 表达式格式错误
+  X_V_MODEL_ON_SCOPE_VARIABLE, // v-model 用在作用域变量上
+  X_V_MODEL_ON_PROPS, // v-model 用在 props 上
+  X_INVALID_EXPRESSION, // 表达式非法
+  X_KEEP_ALIVE_INVALID_CHILDREN, // keep-alive 的子节点非法
 
-  // generic errors
-  X_PREFIX_ID_NOT_SUPPORTED,
-  X_MODULE_MODE_NOT_SUPPORTED,
-  X_CACHE_HANDLER_NOT_SUPPORTED,
-  X_SCOPE_ID_NOT_SUPPORTED,
-  X_VNODE_HOOKS,
+  // 通用错误
+  X_PREFIX_ID_NOT_SUPPORTED, // 不支持 prefixId
+  X_MODULE_MODE_NOT_SUPPORTED, // 不支持 module 模式
+  X_CACHE_HANDLER_NOT_SUPPORTED, // 不支持缓存处理器
+  X_SCOPE_ID_NOT_SUPPORTED, // 不支持 scopeId
+  X_VNODE_HOOKS, // vnode hooks 错误
 
-  // placed here to preserve order for the current minor
-  // TODO adjust order in 3.5
-  X_V_BIND_INVALID_SAME_NAME_ARGUMENT,
+  // 保持当前小版本顺序
+  // TODO: 3.5版本调整顺序
+  X_V_BIND_INVALID_SAME_NAME_ARGUMENT, // v-bind 出现同名参数非法
 
-  // Special value for higher-order compilers to pick up the last code
-  // to avoid collision of error codes. This should always be kept as the last
-  // item.
+  // 供高阶编译器使用的特殊值，用于获取最后一个错误码，避免冲突。始终保持为最后一项。
   __EXTEND_POINT__,
 }
 
+// 具体错误信息
 export const errorMessages: Record<ErrorCodes, string> = {
   // parse errors
   [ErrorCodes.ABRUPT_CLOSING_OF_EMPTY_COMMENT]: 'Illegal comment.',
@@ -152,7 +187,7 @@ export const errorMessages: Record<ErrorCodes, string> = {
     'Note that dynamic directive argument cannot contain spaces.',
   [ErrorCodes.X_MISSING_DIRECTIVE_NAME]: 'Legal directive name was expected.',
 
-  // transform errors
+  // transform errors: 编译阶段错误
   [ErrorCodes.X_V_IF_NO_EXPRESSION]: `v-if/v-else-if is missing expression.`,
   [ErrorCodes.X_V_IF_SAME_KEY]: `v-if/else branches must use unique keys.`,
   [ErrorCodes.X_V_ELSE_NO_ADJACENT_IF]: `v-else/v-else-if has no adjacent v-if or v-else-if.`,

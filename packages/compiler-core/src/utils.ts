@@ -272,20 +272,23 @@ export function advancePositionWithMutation(
   return pos
 }
 
+// 错误提示
 export function assert(condition: boolean, msg?: string): void {
   /* v8 ignore next 3 */
   if (!condition) {
     throw new Error(msg || `unexpected compiler condition`)
   }
 }
-
+// 查找指令
 export function findDir(
   node: ElementNode,
   name: string | RegExp,
   allowEmpty: boolean = false,
 ): DirectiveNode | undefined {
+  // 遍历节点属性
   for (let i = 0; i < node.props.length; i++) {
     const p = node.props[i]
+    // 判断是否为指令
     if (
       p.type === NodeTypes.DIRECTIVE &&
       (allowEmpty || p.exp) &&
@@ -296,6 +299,7 @@ export function findDir(
   }
 }
 
+// 查找属性
 export function findProp(
   node: ElementNode,
   name: string,
