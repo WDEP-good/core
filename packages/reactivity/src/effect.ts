@@ -458,7 +458,14 @@ function removeSub(link: Link, soft = false) {
   }
 }
 
+/**
+ * 移除依赖
+ *
+ * @type function
+ * @param link - 依赖链接
+ */
 function removeDep(link: Link) {
+  // 获取依赖链接的prevDep和nextDep
   const { prevDep, nextDep } = link
   if (prevDep) {
     prevDep.nextDep = nextDep
@@ -470,31 +477,56 @@ function removeDep(link: Link) {
   }
 }
 
+/**
+ * 响应式副作用Runner实例类型
+ *
+ * @type interface
+ * @param () => T - 副作用函数
+ * @param effect - 副作用函数实例
+ */
 export interface ReactiveEffectRunner<T = any> {
   (): T
   effect: ReactiveEffect
 }
 
+/**
+ * 创建一个响应式副作用函数。
+ *
+ * 该函数会创建一个 ReactiveEffect 实例，并将其与传入的副作用函数关联起来。
+ *
+ * @type function
+ * @param fn - 要创建的副作用函数。
+ * @param options - 可选的副作用选项。
+ * @returns 返回一个函数，该函数可以调用副作用函数并返回其结果。
+ */
 export function effect<T = any>(
   fn: () => T,
   options?: ReactiveEffectOptions,
 ): ReactiveEffectRunner<T> {
+  // 如果这个fn是已经创建的副作用函数，则返回这个副作用函数
   if ((fn as ReactiveEffectRunner).effect instanceof ReactiveEffect) {
     fn = (fn as ReactiveEffectRunner).effect.fn
   }
-
+  // 经过上面的判断，如果fn不是已经创建的副作用函数，则创建一个 ReactiveEffect 实例
+  // 传入fn创建一个 ReactiveEffect 实例
   const e = new ReactiveEffect(fn)
+  // 如果options存在，则将options配置到这个新创建的副作用函数上
   if (options) {
     extend(e, options)
   }
+  // 尝试执行副作用函数
   try {
     e.run()
   } catch (err) {
+    // 如果执行副作用函数时发生错误，则停止副作用函数，并抛出错误
     e.stop()
     throw err
   }
+  // 将副作用的run方法绑定到e上作为runner
   const runner = e.run.bind(e) as ReactiveEffectRunner
+  // 将整个副作用绑定到 runner 上
   runner.effect = e
+  // 返回runner实例
   return runner
 }
 

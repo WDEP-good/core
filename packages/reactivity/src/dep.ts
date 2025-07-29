@@ -19,39 +19,36 @@ import {
 export let globalVersion = 0
 
 /**
- * Represents a link between a source (Dep) and a subscriber (Effect or Computed).
- * Deps and subs have a many-to-many relationship - each link between a
- * dep and a sub is represented by a Link instance.
+ * 表示依赖（Dep）和订阅者（Effect 或 Computed）之间的链接。
+ * Deps 和 subs 具有多对多关系 - dep 和 sub 之间的每个链接都由一个 Link 实例表示。
  *
- * A Link is also a node in two doubly-linked lists - one for the associated
- * sub to track all its deps, and one for the associated dep to track all its
- * subs.
+ * Link 也是两个双向链表中的一个节点 - 一个用于关联的 sub 来跟踪其所有 deps，
+ * 另一个用于关联的 dep 来跟踪其所有 subs。
  *
- * @internal
  */
 export class Link {
   /**
-   * - Before each effect run, all previous dep links' version are reset to -1
-   * - During the run, a link's version is synced with the source dep on access
-   * - After the run, links with version -1 (that were never used) are cleaned
-   *   up
+   * 在每次副作用运行之前，所有先前的 dep 链接的版本都会被重置为 -1
+   * 在运行期间，链接的版本会与源 dep 的版本同步
+   * 在运行之后，版本为 -1 的链接（从未使用过）会被清理
    */
   version: number
 
   /**
-   * Pointers for doubly-linked lists
+   * 双向链表的指针
    */
-  nextDep?: Link
-  prevDep?: Link
-  nextSub?: Link
-  prevSub?: Link
-  prevActiveLink?: Link
-
+  nextDep?: Link // 下一个依赖
+  prevDep?: Link // 上一个依赖
+  nextSub?: Link // 下一个订阅者
+  prevSub?: Link // 上一个订阅者
+  prevActiveLink?: Link // 上一个活跃的链接(用于记录深层副作用嵌套，相当于中断机制)
+  // 构造函数(构建实例时候默认初始化)
   constructor(
-    public sub: Subscriber,
-    public dep: Dep,
+    public sub: Subscriber, // 订阅者,这种写法相当于 this.sub = sub
+    public dep: Dep, // 依赖
   ) {
-    this.version = dep.version
+    this.version = dep.version // 初始化版本
+    // 初始化指针（双向链表）全部指向undefined
     this.nextDep =
       this.prevDep =
       this.nextSub =
@@ -62,41 +59,42 @@ export class Link {
 }
 
 /**
- * @internal
+ * 依赖类，用于记录依赖的版本和订阅者
+ *
  */
 export class Dep {
-  version = 0
+  version = 0 // 版本
   /**
-   * Link between this dep and the current active effect
+   * 当前活跃的链接
    */
   activeLink?: Link = undefined
 
   /**
-   * Doubly linked list representing the subscribing effects (tail)
+   * 订阅者
    */
   subs?: Link = undefined
 
   /**
-   * Doubly linked list representing the subscribing effects (head)
-   * DEV only, for invoking onTrigger hooks in correct order
+   * 订阅者双向链表的头部
+   * 仅用于开发环境，用于正确调用 onTrigger 钩子
    */
   subsHead?: Link
 
   /**
-   * For object property deps cleanup
+   * 对象属性依赖的清理
    */
-  map?: KeyToDepMap = undefined
-  key?: unknown = undefined
+  map?: KeyToDepMap = undefined // 映射
+  key?: unknown = undefined // 键
 
   /**
-   * Subscriber counter
+   * 订阅者计数器
    */
-  sc: number = 0
+  sc: number = 0 // 订阅者计数器
 
   /**
-   * @internal
+   * 跳过响应式处理
    */
-  readonly __v_skip = true
+  readonly __v_skip = true // 跳过响应式处理
   // TODO isolatedDeclarations ReactiveFlags.SKIP
 
   constructor(public computed?: ComputedRefImpl | undefined) {
@@ -239,25 +237,30 @@ type KeyToDepMap = Map<any, Dep>
 
 export const targetMap: WeakMap<object, KeyToDepMap> = new WeakMap()
 
+// 可迭代对象的key
 export const ITERATE_KEY: unique symbol = Symbol(
   __DEV__ ? 'Object iterate' : '',
 )
+
+// Map对象的key的可迭代对象的key
 export const MAP_KEY_ITERATE_KEY: unique symbol = Symbol(
   __DEV__ ? 'Map keys iterate' : '',
 )
+
+// 数组的key的可迭代对象的key
 export const ARRAY_ITERATE_KEY: unique symbol = Symbol(
   __DEV__ ? 'Array iterate' : '',
 )
 
 /**
- * Tracks access to a reactive property.
+ * 跟踪对响应式属性的访问。
  *
- * This will check which effect is running at the moment and record it as dep
- * which records all effects that depend on the reactive property.
+ * 该方法会检查当前正在运行的副作用（effect），并将其记录为依赖（dep），
+ * 这样 dep 就能记录所有依赖该响应式属性的副作用。
  *
- * @param target - Object holding the reactive property.
- * @param type - Defines the type of access to the reactive property.
- * @param key - Identifier of the reactive property to track.
+ * @param target - 持有响应式属性的对象。
+ * @param type - 访问响应式属性的操作类型。
+ * @param key - 要跟踪的响应式属性的标识符。
  */
 export function track(target: object, type: TrackOpTypes, key: unknown): void {
   if (shouldTrack && activeSub) {
@@ -284,12 +287,11 @@ export function track(target: object, type: TrackOpTypes, key: unknown): void {
 }
 
 /**
- * Finds all deps associated with the target (or a specific property) and
- * triggers the effects stored within.
+ * 派发更新依赖，查找与目标（或特定属性）相关的所有依赖，并触发存储在这些依赖中的副作用。
  *
- * @param target - The reactive object.
- * @param type - Defines the type of the operation that needs to trigger effects.
- * @param key - Can be used to target a specific reactive property in the target object.
+ * @param target - 响应式对象。
+ * @param type - 定义需要触发副作用的操作类型。
+ * @param key - 可以用于目标对象中的特定响应式属性。
  */
 export function trigger(
   target: object,

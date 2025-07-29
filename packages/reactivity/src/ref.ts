@@ -273,7 +273,7 @@ const shallowUnwrapHandlers: ProxyHandler<any> = {
  */
 export function proxyRefs<T extends object>(
   objectWithRefs: T,
-): ShallowUnwrapRef<T> {
+): ShallowUnwrapRef<T> | T {
   return isReactive(objectWithRefs)
     ? objectWithRefs
     : new Proxy(objectWithRefs, shallowUnwrapHandlers)
