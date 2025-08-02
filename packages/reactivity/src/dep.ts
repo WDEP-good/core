@@ -12,9 +12,8 @@ import {
 } from './effect'
 
 /**
- * Incremented every time a reactive change happens
- * This is used to give computed a fast path to avoid re-compute when nothing
- * has changed.
+ * 每当响应式数据发生变化时递增
+ * 这用于为计算属性（computed）提供一种快速路径，以便在没有变化时避免重新计算。
  */
 export let globalVersion = 0
 
@@ -162,19 +161,23 @@ export class Dep {
     return link
   }
 
+  // 触发依赖(派发更新)——用于触发依赖更新。当响应式数据发生变化时，会调用此方法来通知所有相关的副作用函数重新执行。
   trigger(debugInfo?: DebuggerEventExtraInfo): void {
+    // 每次触发依赖时，递增依赖的版本
     this.version++
+    // 递增全局版本
     globalVersion++
+    // 通知依赖更新，传递debugInfo参数
     this.notify(debugInfo)
   }
 
   notify(debugInfo?: DebuggerEventExtraInfo): void {
+    // 开始批量更新
     startBatch()
     try {
       if (__DEV__) {
-        // subs are notified and batched in reverse-order and then invoked in
-        // original order at the end of the batch, but onTrigger hooks should
-        // be invoked in original order here.
+        // 通知订阅者，批量处理，逆序处理，最后在批量结束时按原始顺序调用
+        // 但onTrigger钩子应该按原始顺序调用
         for (let head = this.subsHead; head; head = head.nextSub) {
           if (head.sub.onTrigger && !(head.sub.flags & EffectFlags.NOTIFIED)) {
             head.sub.onTrigger(
@@ -188,53 +191,71 @@ export class Dep {
           }
         }
       }
+      // 遍历订阅者
       for (let link = this.subs; link; link = link.prevSub) {
+        // 如果订阅者返回true，则说明是计算属性
         if (link.sub.notify()) {
-          // if notify() returns `true`, this is a computed. Also call notify
-          // on its dep - it's called here instead of inside computed's notify
-          // in order to reduce call stack depth.
+          // 如果notify()返回true，则说明是计算属性。
+          // 也调用它的依赖的notify() - 它在这里而不是在计算属性的notify()中调用，
+          // 以减少调用堆栈深度。
           ;(link.sub as ComputedRefImpl).dep.notify()
         }
       }
     } finally {
+      // 结束批量更新
       endBatch()
     }
   }
 }
 
+// 添加订阅者——用于将订阅者添加到依赖中。当副作用函数被添加为依赖的订阅者时，会调用此方法。
 function addSub(link: Link) {
+  // 递增订阅者计数器
   link.dep.sc++
+  // 如果订阅者的标志中有TRACKING标志，则说明是计算属性
   if (link.sub.flags & EffectFlags.TRACKING) {
+    // 获取依赖的计算属性
     const computed = link.dep.computed
-    // computed getting its first subscriber
-    // enable tracking + lazily subscribe to all its deps
+    // 计算属性获得它的第一个订阅者，启用依赖追踪，并延迟订阅它的所有依赖
     if (computed && !link.dep.subs) {
+      // 启用依赖追踪，并延迟订阅它的所有依赖
       computed.flags |= EffectFlags.TRACKING | EffectFlags.DIRTY
+      // 遍历计算属性的所有依赖
       for (let l = computed.deps; l; l = l.nextDep) {
         addSub(l)
       }
     }
 
+    // 获取依赖的订阅者
     const currentTail = link.dep.subs
+    // 如果当前的尾部不等于link，则说明是计算属性，需要将link添加到尾部
     if (currentTail !== link) {
+      // 将link添加到尾部
       link.prevSub = currentTail
+      // 将link添加到尾部
       if (currentTail) currentTail.nextSub = link
     }
 
+    // 如果开发环境，并且订阅者的头部为undefined，则说明是计算属性，需要将link添加到头部
     if (__DEV__ && link.dep.subsHead === undefined) {
+      // 将link添加到头部
       link.dep.subsHead = link
     }
 
+    // 将link添加到尾部
     link.dep.subs = link
   }
 }
 
-// The main WeakMap that stores {target -> key -> dep} connections.
-// Conceptually, it's easier to think of a dependency as a Dep class
-// which maintains a Set of subscribers, but we simply store them as
-// raw Maps to reduce memory overhead.
+// 定义 KeyToDepMap 类型：Map<any, Dep>
+// 这个类型表示从属性键到依赖对象的映射关系
+// - 键（key）：响应式对象的属性名
+// - 值（value）：对应的 Dep 依赖对象，用于管理该属性的订阅者
 type KeyToDepMap = Map<any, Dep>
 
+// 核心数据结构：targetMap
+// 这是一个 WeakMap，用于存储整个响应式系统的依赖关系
+// 结构：{ 目标对象 -> 属性键 -> 依赖 }
 export const targetMap: WeakMap<object, KeyToDepMap> = new WeakMap()
 
 // 可迭代对象的key
@@ -257,10 +278,6 @@ export const ARRAY_ITERATE_KEY: unique symbol = Symbol(
  *
  * 该方法会检查当前正在运行的副作用（effect），并将其记录为依赖（dep），
  * 这样 dep 就能记录所有依赖该响应式属性的副作用。
- *
- * @param target - 持有响应式属性的对象。
- * @param type - 访问响应式属性的操作类型。
- * @param key - 要跟踪的响应式属性的标识符。
  */
 export function track(target: object, type: TrackOpTypes, key: unknown): void {
   if (shouldTrack && activeSub) {
@@ -288,10 +305,6 @@ export function track(target: object, type: TrackOpTypes, key: unknown): void {
 
 /**
  * 派发更新依赖，查找与目标（或特定属性）相关的所有依赖，并触发存储在这些依赖中的副作用。
- *
- * @param target - 响应式对象。
- * @param type - 定义需要触发副作用的操作类型。
- * @param key - 可以用于目标对象中的特定响应式属性。
  */
 export function trigger(
   target: object,
@@ -301,15 +314,20 @@ export function trigger(
   oldValue?: unknown,
   oldTarget?: Map<unknown, unknown> | Set<unknown>,
 ): void {
+  // 获取目标对象的依赖映射
   const depsMap = targetMap.get(target)
+  // 如果不存在这个依赖映射，则说明这个对象从未被跟踪过，则递增全局版本
   if (!depsMap) {
-    // never been tracked
+    // 从未被跟踪过，递增全局版本
     globalVersion++
     return
   }
 
+  // 执行依赖函数(派发更新)
   const run = (dep: Dep | undefined) => {
+    // 如果存在依赖，则触发依赖
     if (dep) {
+      // 开发环境，传入参数，触发依赖函数
       if (__DEV__) {
         dep.trigger({
           target,
@@ -320,11 +338,13 @@ export function trigger(
           oldTarget,
         })
       } else {
+        // 生产环境，触发依赖函数
         dep.trigger()
       }
     }
   }
 
+  // 开始批量更新
   startBatch()
 
   if (type === TriggerOpTypes.CLEAR) {
@@ -387,13 +407,17 @@ export function trigger(
     }
   }
 
+  // 结束批量更新
   endBatch()
 }
 
+// 从响应式对象中获取依赖
 export function getDepFromReactive(
   object: any,
   key: string | number | symbol,
 ): Dep | undefined {
+  // 获取这个对象的依赖映射
   const depMap = targetMap.get(object)
+  // 如果存在依赖映射，则获取对应的依赖
   return depMap && depMap.get(key)
 }

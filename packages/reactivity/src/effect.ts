@@ -5,55 +5,102 @@ import { type Link, globalVersion } from './dep'
 import { activeEffectScope } from './effectScope'
 import { warn } from './warning'
 
+// 副作用调度器
 export type EffectScheduler = (...args: any[]) => any
 
+/**
+ * 调试事件(effect+DebuggerEventExtraInfo)
+ * @type interface
+ */
 export type DebuggerEvent = {
-  effect: Subscriber
-} & DebuggerEventExtraInfo
+  effect: Subscriber // 副作用函数
+} & DebuggerEventExtraInfo // 调试事件额外信息
 
+/**
+ * 调试事件额外信息
+ * @type interface
+ */
 export type DebuggerEventExtraInfo = {
-  target: object
-  type: TrackOpTypes | TriggerOpTypes
-  key: any
-  newValue?: any
-  oldValue?: any
-  oldTarget?: Map<any, any> | Set<any>
+  target: object // 目标对象
+  type: TrackOpTypes | TriggerOpTypes // 操作类型
+  key: any // 键
+  newValue?: any // 新值
+  oldValue?: any // 旧值
+  oldTarget?: Map<any, any> | Set<any> // 旧目标
 }
 
+/**
+ * 调试选项
+ * @type interface
+ */
 export interface DebuggerOptions {
-  onTrack?: (event: DebuggerEvent) => void
-  onTrigger?: (event: DebuggerEvent) => void
+  onTrack?: (event: DebuggerEvent) => void // 当依赖被追踪时调用的回调函数
+  onTrigger?: (event: DebuggerEvent) => void // 当依赖被触发时调用的回调函数
 }
 
+/**
+ * 响应式副作用选项
+ * @type interface
+ */
 export interface ReactiveEffectOptions extends DebuggerOptions {
-  scheduler?: EffectScheduler
-  allowRecurse?: boolean
-  onStop?: () => void
+  scheduler?: EffectScheduler // 调度器，用于控制副作用函数的执行时机
+  allowRecurse?: boolean // 是否允许递归调用
+  onStop?: () => void // 停止时调用的回调函数
 }
 
+/**
+ * 响应式副作用运行器
+ * @type interface
+ */
 export interface ReactiveEffectRunner<T = any> {
-  (): T
-  effect: ReactiveEffect
+  (): T // 运行副作用函数
+  effect: ReactiveEffect // 副作用函数实例
 }
 
+/**
+ * 当前活动的副作用函数
+ * @type let
+ */
 export let activeSub: Subscriber | undefined
 
+// 副作用标志
 export enum EffectFlags {
-  /**
-   * ReactiveEffect only
-   */
+  // 活跃状态 - 仅用于 ReactiveEffect
+  // 表示副作用函数处于活跃状态，可以正常执行和追踪依赖
   ACTIVE = 1 << 0,
+
+  // 运行状态
+  // 表示副作用函数正在执行中，用于防止递归调用
   RUNNING = 1 << 1,
+
+  // 追踪状态
+  // 表示正在追踪依赖关系，用于区分计算属性的懒加载机制
   TRACKING = 1 << 2,
+
+  // 已通知状态
+  // 表示副作用函数已经被通知需要重新执行，避免重复通知
   NOTIFIED = 1 << 3,
+
+  // 脏状态
+  // 表示计算属性需要重新计算，或者副作用函数需要重新执行
   DIRTY = 1 << 4,
+
+  // 允许递归
+  // 允许副作用函数在自身执行过程中再次触发自己
   ALLOW_RECURSE = 1 << 5,
+
+  // 暂停状态
+  // 表示副作用函数被暂停，暂时不会响应依赖变化
   PAUSED = 1 << 6,
+
+  // 已评估状态
+  // 表示计算属性已经被评估过，用于缓存优化
   EVALUATED = 1 << 7,
 }
 
 /**
- * Subscriber is a type that tracks (or subscribes to) a list of deps.
+ * Subscriber 是一个类型，用于跟踪（或订阅）一组依赖项
+ * @type interface
  */
 export interface Subscriber extends DebuggerOptions {
   /**
